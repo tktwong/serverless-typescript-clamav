@@ -1,7 +1,7 @@
 import { middyfy } from '@libs/lambda';
 import { S3Event } from 'aws-lambda';
 import * as AWS from 'aws-sdk';
-import { exec } from 'child_process';
+import { spawnSync, SpawnSyncReturns } from 'child_process';
 import { unlinkSync, writeFileSync } from 'fs';
 
 const s3 = new AWS.S3();
@@ -32,8 +32,16 @@ const virusScan = async (event: S3Event) => {
 
 		try {
 			// scan it
-			const scanStatus = exec(`clamscan --database=/opt/var/lib/clamav /tmp/${record.s3.object.key}`);
+			const scanStatus: SpawnSyncReturns<Buffer> = spawnSync('clamscan',
+				['--database=/opt/var/lib/clamav', `/tmp/${record.s3.object.key}`], {
+				stdio: 'pipe',
+				encoding: 'buffer',
+			});
 			console.log('scanStatus', scanStatus);
+			console.log('stdout', scanStatus.stdout.toString());
+			console.log('stderr', scanStatus.stderr.toString());
+			console.log('output length', scanStatus.output.length);
+			scanStatus.output.forEach(item => console.log(item && item.toString()));
 
 			await s3
 				.putObjectTagging({

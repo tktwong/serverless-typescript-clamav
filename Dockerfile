@@ -51,8 +51,8 @@ RUN rpm2cpio nettle*.rpm | cpio -vimd
 
 RUN mkdir -p bin
 RUN mkdir -p lib
-RUN mkdir -p /opt/var/lib/clamav
-RUN chmod -R 777 /opt/var/lib/clamav
+RUN mkdir -p var/lib/clamav
+RUN chmod -R 777 var/lib/clamav
 
 COPY ./freshclam.conf .
 

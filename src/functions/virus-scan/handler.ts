@@ -6,6 +6,8 @@ import { unlinkSync, writeFileSync } from 'fs';
 
 const s3 = new AWS.S3();
 
+const isDebug = () => process.env.LOG_LEVEL === 'debug';
+
 const virusScan = async (event: S3Event) => {
 	if (!event.Records) {
 		console.log("Not an S3 event invocation!");
@@ -38,9 +40,8 @@ const virusScan = async (event: S3Event) => {
 				encoding: 'buffer',
 			});
 			console.log('scanStatus', scanStatus);
-			console.log('stdout', scanStatus.stdout.toString());
-			console.log('stderr', scanStatus.stderr.toString());
-			console.log('output length', scanStatus.output.length);
+			isDebug() && console.debug('stdout', scanStatus.stdout.toString());
+			isDebug() && console.debug('stderr', scanStatus.stderr.toString());
 			scanStatus.output.forEach(item => console.log(item && item.toString()));
 
 			await s3
@@ -51,30 +52,29 @@ const virusScan = async (event: S3Event) => {
 						TagSet: [
 							{
 								Key: 'pharmacy-clamav-status',
-								Value: 'clean'
+								Value: scanStatus.status === 0 ? 'clean' : 'dirty'
 							}
 						]
 					}
 				})
 				.promise();
 		} catch (err) {
-			if (err.status === 1) {
-				// tag as dirty, OR you can delete it
-				await s3
-					.putObjectTagging({
-						Bucket: record.s3.bucket.name,
-						Key: record.s3.object.key,
-						Tagging: {
-							TagSet: [
-								{
-									Key: 'pms-clamav-status',
-									Value: 'dirty'
-								}
-							]
-						}
-					})
-					.promise();
-			}
+			console.error(err);
+			// tag as dirty, OR you can delete it
+			await s3
+				.putObjectTagging({
+					Bucket: record.s3.bucket.name,
+					Key: record.s3.object.key,
+					Tagging: {
+						TagSet: [
+							{
+								Key: 'pharmacy-clamav-status',
+								Value: 'dirty'
+							}
+						]
+					}
+				})
+				.promise();
 		}
 
 		// delete the temp file
